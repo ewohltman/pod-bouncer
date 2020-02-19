@@ -56,7 +56,7 @@ func TestNew(t *testing.T) {
 }
 
 func testAlertEndpoint(client *http.Client) error {
-	resp, err := doRequest(client, alertEndpoint)
+	resp, err := doRequest(client, http.MethodPost, alertEndpoint, nil)
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func testAlertEndpoint(client *http.Client) error {
 }
 
 func testRootEndpoint(client *http.Client) error {
-	resp, err := doRequest(client, rootEndpoint)
+	resp, err := doRequest(client, http.MethodGet, rootEndpoint, nil)
 	if err != nil {
 		return err
 	}
@@ -83,8 +83,8 @@ func testRootEndpoint(client *http.Client) error {
 	return nil
 }
 
-func doRequest(client *http.Client, endpoint string) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, testURL+endpoint, nil)
+func doRequest(client *http.Client, method, endpoint string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest(method, testURL+endpoint, body)
 	if err != nil {
 		return nil, fmt.Errorf("error creating test request: %w", err)
 	}

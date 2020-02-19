@@ -54,15 +54,20 @@ func New(log logging.Interface, port string) *http.Server {
 
 func alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, err := io.Copy(ioutil.Discard, r.Body)
+		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.WithError(err).Warn("Internal HTTP server error draining request body")
+			log.WithError(err).Warn("Internal HTTP server error reading request body")
 		}
 
-		err = r.Body.Close()
-		if err != nil {
-			log.WithError(err).Warn("Internal HTTP server error closing request body")
-		}
+		defer func() {
+			closeErr := r.Body.Close()
+			if closeErr != nil {
+				log.WithError(closeErr).Warn("Internal HTTP server error closing request body")
+			}
+		}()
+
+		log.WithField("request", string(reqBody)).
+			Infof("Request received on %s", alertEndpoint)
 	}
 }
 
