@@ -12,7 +12,7 @@ test:
 	go test -v -race -coverprofile=coverage.out ./...
 
 build:
-	CGO_ENABLED=0 go build -o build/package/pod-bouncer cmd/pod-bouncer/pod-bouncer.go
+	CGO_ENABLED=0 go build -o build/package/pod-bouncer/pod-bouncer cmd/pod-bouncer/pod-bouncer.go
 
 image:
 	docker pull "${parentImage}"
