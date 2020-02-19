@@ -7,11 +7,10 @@ metadata:
   labels:
     app: pod-bouncer
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: pod-bouncer
-  serviceName: pod-bouncer
   template:
     metadata:
       labels:
