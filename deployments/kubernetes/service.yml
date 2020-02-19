@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pod-bouncer
+  namespace: ephemeral-roles
+  labels:
+    app: pod-bouncer
+spec:
+  selector:
+    app: pod-bouncer
+  ports:
+    - name: http
+      port: 8080
