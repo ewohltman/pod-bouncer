@@ -3,8 +3,6 @@
 MAKEFILE_PATH=$(shell readlink -f "${0}")
 MAKEFILE_DIR=$(shell dirname "${MAKEFILE_PATH}")
 
-parentImage=alpine:latest
-
 lint:
 	golangci-lint run ./...
 
@@ -15,8 +13,7 @@ build:
 	CGO_ENABLED=0 go build -o build/package/pod-bouncer/pod-bouncer cmd/pod-bouncer/pod-bouncer.go
 
 image:
-	docker pull "${parentImage}"
-	docker image build -t ewohltman/pod-bouncer:latest .
+	docker image build -t ewohltman/pod-bouncer:latest build/package/pod-bouncer
 
 push:
 	docker login -u "${DOCKER_USER}" -p "${DOCKER_PASS}"
