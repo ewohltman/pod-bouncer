@@ -13,8 +13,8 @@ REPO_YMLS="${SCRIPT_DIR}/../deployments/kubernetes"
 NAMESPACE_YML="${REPO_YMLS}/namespace.yml"
 SERVICE_YML="${REPO_YMLS}/service.yml"
 
-DEPLOYMENT_YML="${REPO_YMLS}/statefulset.yml"
-VARIABLIZED_DEPLOYMENT_YML="/tmp/statefulset.yml"
+DEPLOYMENT_YML="${REPO_YMLS}/deployment.yml"
+VARIABLIZED_DEPLOYMENT_YML="/tmp/deployment.yml"
 
 setup() {
   cp "${DEPLOYMENT_YML}" "${VARIABLIZED_DEPLOYMENT_YML}"
