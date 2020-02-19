@@ -3,3 +3,6 @@
 
 # Test results
 coverage.out
+
+# Binary
+build/package/pod-bouncer/pod-bouncer
