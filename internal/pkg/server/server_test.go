@@ -23,7 +23,7 @@ const (
 
 func TestNew(t *testing.T) {
 	log := logging.New()
-	log.Out = ioutil.Discard
+	// log.Out = ioutil.Discard
 
 	testServer := New(log, testPort)
 
@@ -61,9 +61,14 @@ func testAlertEndpoint(client *http.Client) error {
 		return err
 	}
 
+	// TODO: Read response body and provide it in error if needed.
 	err = drainCloseResponse(resp)
 	if err != nil {
 		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected response code: %d", resp.StatusCode)
 	}
 
 	return nil

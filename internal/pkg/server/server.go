@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 
+	"github.com/ewohltman/pod-bouncer/internal/pkg/alert"
 	"github.com/ewohltman/pod-bouncer/internal/pkg/logging"
 )
 
@@ -26,6 +27,14 @@ const (
 
 	alertEndpoint = "/alert"
 	rootEndpoint  = "/"
+)
+
+const (
+	errorInternalServerError    = "Internal server error"
+	errorUnmarshalingAlertEvent = errorInternalServerError + " unmarshaling Event"
+	errorReadingRequestBody     = errorInternalServerError + " reading request body"
+	errorClosingRequestBody     = errorInternalServerError + " closing request body"
+	errorWritingResponseBody    = errorInternalServerError + " writing response body"
 )
 
 // New returns a new pre-configured server instance.
@@ -54,20 +63,34 @@ func New(log logging.Interface, port string) *http.Server {
 
 func alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Info("Event received")
+
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.WithError(err).Warn("Internal HTTP server error reading request body")
+			log.WithError(err).Warn(errorReadingRequestBody)
+
+			sendErrorResponse(log, w, errorReadingRequestBody)
+
+			return
 		}
 
 		defer func() {
 			closeErr := r.Body.Close()
 			if closeErr != nil {
-				log.WithError(closeErr).Warn("Internal HTTP server error closing request body")
+				log.WithError(closeErr).Warn(errorClosingRequestBody)
 			}
 		}()
 
-		log.WithField("request", string(reqBody)).
-			Infof("Request received on %s", alertEndpoint)
+		event, err := alert.NewEvent(reqBody)
+		if err != nil {
+			log.WithError(err).Error(errorUnmarshalingAlertEvent)
+
+			sendErrorResponse(log, w, errorUnmarshalingAlertEvent)
+
+			return
+		}
+
+		log.WithField("event", event).Info("Parsed event")
 	}
 }
 
@@ -75,12 +98,21 @@ func rootHandler(log logging.Interface) func(http.ResponseWriter, *http.Request)
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, err := io.Copy(ioutil.Discard, r.Body)
 		if err != nil {
-			log.WithError(err).Warn("Internal HTTP server error draining request body")
+			log.WithError(err).Warn(errorReadingRequestBody)
 		}
 
 		err = r.Body.Close()
 		if err != nil {
-			log.WithError(err).Warn("Internal HTTP server error closing request body")
+			log.WithError(err).Warn(errorClosingRequestBody)
 		}
+	}
+}
+
+func sendErrorResponse(log logging.Interface, w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusInternalServerError)
+
+	_, err := w.Write([]byte(message))
+	if err != nil {
+		log.WithError(err).Error(errorWritingResponseBody)
 	}
 }
