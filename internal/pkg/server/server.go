@@ -11,8 +11,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/kubernetes"
 
-	"github.com/ewohltman/pod-bouncer/internal/pkg/alert"
+	"github.com/ewohltman/pod-bouncer/internal/pkg/alertmanager"
 	"github.com/ewohltman/pod-bouncer/internal/pkg/logging"
 )
 
@@ -36,16 +37,29 @@ const (
 	errorClosingRequestBody     = errorInternalServerError + ": unable to close request body"
 	errorWritingResponseBody    = errorInternalServerError + ": unable to write response body"
 	errorUnmarshalingAlertEvent = errorInternalServerError + ": unable to unmarshal Event"
+	errorDeletingPod            = errorInternalServerError + ": error deleting pod"
 )
 
 // Instance wraps an *http.Server for extending custom functionality.
 type Instance struct {
 	*http.Server
+	alertmanagerHandler *alertmanager.Handler
 }
 
 // New returns a new pre-configured server instance.
-func New(log logging.Interface, port string) *Instance {
+func New(log logging.Interface, port string, kubeClientset kubernetes.Interface) *Instance {
 	mux := http.NewServeMux()
+
+	errorLog := stdLog.New(log.WrappedLogger().WriterLevel(logrus.ErrorLevel), "", 0)
+
+	instance := &Instance{
+		Server: &http.Server{
+			Addr:     "0.0.0.0:" + port,
+			Handler:  mux,
+			ErrorLog: errorLog,
+		},
+		alertmanagerHandler: alertmanager.NewHandler(log, kubeClientset),
+	}
 
 	mux.Handle(metricsEndpoint, promhttp.Handler())
 
@@ -55,23 +69,15 @@ func New(log logging.Interface, port string) *Instance {
 	mux.HandleFunc(pprofSymbolEndpoint, pprof.Symbol)
 	mux.HandleFunc(pprofTraceEndpoint, pprof.Trace)
 
-	mux.HandleFunc(alertEndpoint, alertHandler(log))
-	mux.HandleFunc(rootEndpoint, rootHandler(log))
+	mux.HandleFunc(alertEndpoint, instance.alertHandler(log))
+	mux.HandleFunc(rootEndpoint, instance.rootHandler(log))
 
-	errorLog := stdLog.New(log.WrappedLogger().WriterLevel(logrus.ErrorLevel), "", 0)
-
-	return &Instance{
-		Server: &http.Server{
-			Addr:     "0.0.0.0:" + port,
-			Handler:  mux,
-			ErrorLog: errorLog,
-		},
-	}
+	return instance
 }
 
-func alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request) {
+func (instance *Instance) alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Info("Event received")
+		log.Info("Alert event received")
 
 		if r.Body == nil {
 			log.Error(errorEmptyRequestBody)
@@ -97,7 +103,7 @@ func alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request
 			}
 		}()
 
-		event, err := alert.NewEvent(reqBody)
+		event, err := alertmanager.NewEvent(reqBody)
 		if err != nil {
 			log.WithError(err).Error(errorUnmarshalingAlertEvent)
 
@@ -106,13 +112,22 @@ func alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request
 			return
 		}
 
-		for _, alertInstance := range event.Alerts {
-			alert.DeletePod(alertInstance)
+		for _, alert := range event.Alerts {
+			err = instance.alertmanagerHandler.DeletePod(alert)
+			if err != nil {
+				log.WithError(err).Error(errorDeletingPod)
+				continue
+			}
+
+			log.WithFields(logrus.Fields{
+				"namespace": alert.Labels.Namespace,
+				"pod":       alert.Labels.Pod,
+			}).Info("Deleted pod")
 		}
 	}
 }
 
-func rootHandler(log logging.Interface) func(http.ResponseWriter, *http.Request) {
+func (instance *Instance) rootHandler(log logging.Interface) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Body == nil {
 			return
