@@ -28,14 +28,7 @@ func NewHandler(log logging.Interface, kubeClientset kubernetes.Interface) *Hand
 
 // DeletePod deletes a running pod, allowing Kubernetes to reschedule it.
 func (handler *Handler) DeletePod(alert *Alert) error {
-	pod, err := handler.kubeClientset.CoreV1().Pods(alert.Labels.Namespace).Get(alert.Labels.Pod, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	handler.log.WithField("pod", pod).Info("Found pod")
-
-	return nil
+	return handler.kubeClientset.CoreV1().Pods(alert.Labels.Namespace).Delete(alert.Labels.Pod, &metav1.DeleteOptions{})
 }
 
 // Annotations are extra metadata of an Alert.
