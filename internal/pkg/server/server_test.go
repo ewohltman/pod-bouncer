@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"k8s.io/client-go/kubernetes/fake"
+
 	"github.com/ewohltman/pod-bouncer/internal/pkg/logging"
 )
 
@@ -25,28 +27,39 @@ func TestNew(t *testing.T) {
 	log := logging.New()
 	log.Out = ioutil.Discard
 
-	testServer := New(log, testPort)
+	testEventData, err := newTestEvent()
+	if err != nil {
+		t.Fatalf("Error creating test event: %s", err)
+	}
+
+	fakeClientset := fake.NewSimpleClientset()
+
+	testServer := New(log, testPort, fakeClientset)
 	if testServer == nil {
 		t.Fatal("Unexpected nil *http.Server")
 	}
 
-	err := testAlertEndpoint(log)
+	err = testAlertEndpoint(log, testServer, testEventData)
 	if err != nil {
 		t.Errorf("Error testing alert endpoint: %s", err)
 	}
 
-	err = testRootEndpoint(log)
+	err = testRootEndpoint(log, testServer)
 	if err != nil {
 		t.Errorf("Error testing root endpoint: %s", err)
 	}
 }
 
-func testAlertEndpoint(log logging.Interface) error {
-	testEventData, err := ioutil.ReadFile("testdata/event.json")
+func newTestEvent() (eventData []byte, err error) {
+	eventData, err = ioutil.ReadFile("testdata/event.json")
 	if err != nil {
-		return fmt.Errorf("error reading testdata file: %w", err)
+		return nil, fmt.Errorf("error reading testdata file: %w", err)
 	}
 
+	return
+}
+
+func testAlertEndpoint(log logging.Interface, testServer *Instance, testEventData []byte) error {
 	nilBodyReq, err := http.NewRequest(http.MethodPost, testURL+alertEndpoint, nil)
 	if err != nil {
 		return fmt.Errorf("error creating nil body test request: %w", err)
@@ -68,10 +81,10 @@ func testAlertEndpoint(log logging.Interface) error {
 		{req: validReq, expectedResponseCode: http.StatusOK},
 	}
 
-	return runTests(alertHandler(log), testCases)
+	return runTests(testServer.alertHandler(log), testCases)
 }
 
-func testRootEndpoint(log logging.Interface) error {
+func testRootEndpoint(log logging.Interface, testServer *Instance) error {
 	nilBodyReq, err := http.NewRequest(http.MethodPost, testURL+rootEndpoint, nil)
 	if err != nil {
 		return fmt.Errorf("error creating nil body test request: %w", err)
@@ -87,7 +100,7 @@ func testRootEndpoint(log logging.Interface) error {
 		{req: emptyBodyReq, expectedResponseCode: http.StatusOK},
 	}
 
-	return runTests(rootHandler(log), testCases)
+	return runTests(testServer.rootHandler(log), testCases)
 }
 
 func runTests(testFunc func(http.ResponseWriter, *http.Request), testCases []*testCase) error {
