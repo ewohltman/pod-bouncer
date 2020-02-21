@@ -38,8 +38,13 @@ const (
 	errorUnmarshalingAlertEvent = errorInternalServerError + ": unable to unmarshal Event"
 )
 
+// Instance wraps an *http.Server for extending custom functionality.
+type Instance struct {
+	*http.Server
+}
+
 // New returns a new pre-configured server instance.
-func New(log logging.Interface, port string) *http.Server {
+func New(log logging.Interface, port string) *Instance {
 	mux := http.NewServeMux()
 
 	mux.Handle(metricsEndpoint, promhttp.Handler())
@@ -55,10 +60,12 @@ func New(log logging.Interface, port string) *http.Server {
 
 	errorLog := stdLog.New(log.WrappedLogger().WriterLevel(logrus.ErrorLevel), "", 0)
 
-	return &http.Server{
-		Addr:     "0.0.0.0:" + port,
-		Handler:  mux,
-		ErrorLog: errorLog,
+	return &Instance{
+		Server: &http.Server{
+			Addr:     "0.0.0.0:" + port,
+			Handler:  mux,
+			ErrorLog: errorLog,
+		},
 	}
 }
 
