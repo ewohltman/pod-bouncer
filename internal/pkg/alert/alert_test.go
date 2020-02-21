@@ -2,34 +2,55 @@ package alert
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"reflect"
 	"testing"
 )
 
 func TestNewEvent(t *testing.T) {
-	testEvent, err := ioutil.ReadFile("testdata/event.json")
-	if err != nil {
-		t.Fatalf("Error reading testdata file: %s", err)
-	}
-
-	expected := &Event{}
-
-	err = json.Unmarshal(testEvent, expected)
-	if err != nil {
-		t.Fatalf("Error unmarshaling test event: %s", err)
-	}
-
-	actual, err := NewEvent(testEvent)
+	testEventData, testEvent, err := newTestEvent()
 	if err != nil {
 		t.Fatalf("Error creating new test event: %s", err)
 	}
 
-	if !reflect.DeepEqual(actual, expected) {
+	event, err := NewEvent(testEventData)
+	if err != nil {
+		t.Fatalf("Error creating new test event: %s", err)
+	}
+
+	if !reflect.DeepEqual(event, testEvent) {
 		t.Errorf(
 			"Unexpected result. Got: %+v, Expected: %+v",
-			actual,
-			expected,
+			event,
+			testEvent,
 		)
 	}
+}
+
+func TestDeletePod(t *testing.T) {
+	_, testEvent, err := newTestEvent()
+	if err != nil {
+		t.Fatalf("Error creating new test event: %s", err)
+	}
+
+	for _, alertInstance := range testEvent.Alerts {
+		DeletePod(alertInstance)
+	}
+}
+
+func newTestEvent() (eventData []byte, event *Event, err error) {
+	eventData, err = ioutil.ReadFile("testdata/event.json")
+	if err != nil {
+		return nil, nil, fmt.Errorf("error reading testdata file: %w", err)
+	}
+
+	event = &Event{}
+
+	err = json.Unmarshal(eventData, event)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error unmarshaling test event: %w", err)
+	}
+
+	return
 }

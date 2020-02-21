@@ -20,5 +20,5 @@ func NewEvent(data []byte) (*Event, error) {
 
 // DeletePod deletes a running pod, allowing Kubernetes to reschedule it.
 func DeletePod(instance *Instance) {
-	// TODO
+
 }
