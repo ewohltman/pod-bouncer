@@ -106,7 +106,9 @@ func alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request
 			return
 		}
 
-		log.WithField("event", event).Info("Parsed event")
+		for _, alertInstance := range event.Alerts {
+			alert.DeletePod(alertInstance)
+		}
 	}
 }
 
