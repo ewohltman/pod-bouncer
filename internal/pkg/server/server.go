@@ -31,10 +31,11 @@ const (
 
 const (
 	errorInternalServerError    = "Internal server error"
-	errorUnmarshalingAlertEvent = errorInternalServerError + " unmarshaling Event"
-	errorReadingRequestBody     = errorInternalServerError + " reading request body"
-	errorClosingRequestBody     = errorInternalServerError + " closing request body"
-	errorWritingResponseBody    = errorInternalServerError + " writing response body"
+	errorEmptyRequestBody       = errorInternalServerError + ": empty request body"
+	errorReadingRequestBody     = errorInternalServerError + ": unable to read request body"
+	errorClosingRequestBody     = errorInternalServerError + ": unable to close request body"
+	errorWritingResponseBody    = errorInternalServerError + ": unable to write response body"
+	errorUnmarshalingAlertEvent = errorInternalServerError + ": unable to unmarshal Event"
 )
 
 // New returns a new pre-configured server instance.
@@ -65,11 +66,19 @@ func alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Info("Event received")
 
+		if r.Body == nil {
+			log.Error(errorEmptyRequestBody)
+
+			send400ErrorResponse(log, w, errorEmptyRequestBody)
+
+			return
+		}
+
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.WithError(err).Warn(errorReadingRequestBody)
+			log.WithError(err).Error(errorReadingRequestBody)
 
-			sendErrorResponse(log, w, errorReadingRequestBody)
+			send500ErrorResponse(log, w, errorReadingRequestBody)
 
 			return
 		}
@@ -77,7 +86,7 @@ func alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request
 		defer func() {
 			closeErr := r.Body.Close()
 			if closeErr != nil {
-				log.WithError(closeErr).Warn(errorClosingRequestBody)
+				log.WithError(closeErr).Error(errorClosingRequestBody)
 			}
 		}()
 
@@ -85,7 +94,7 @@ func alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request
 		if err != nil {
 			log.WithError(err).Error(errorUnmarshalingAlertEvent)
 
-			sendErrorResponse(log, w, errorUnmarshalingAlertEvent)
+			send500ErrorResponse(log, w, errorUnmarshalingAlertEvent)
 
 			return
 		}
@@ -96,6 +105,10 @@ func alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request
 
 func rootHandler(log logging.Interface) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Body == nil {
+			return
+		}
+
 		_, err := io.Copy(ioutil.Discard, r.Body)
 		if err != nil {
 			log.WithError(err).Warn(errorReadingRequestBody)
@@ -108,8 +121,16 @@ func rootHandler(log logging.Interface) func(http.ResponseWriter, *http.Request)
 	}
 }
 
-func sendErrorResponse(log logging.Interface, w http.ResponseWriter, message string) {
-	w.WriteHeader(http.StatusInternalServerError)
+func send400ErrorResponse(log logging.Interface, w http.ResponseWriter, message string) {
+	sendErrorResponse(log, w, message, http.StatusBadRequest)
+}
+
+func send500ErrorResponse(log logging.Interface, w http.ResponseWriter, message string) {
+	sendErrorResponse(log, w, message, http.StatusInternalServerError)
+}
+
+func sendErrorResponse(log logging.Interface, w http.ResponseWriter, message string, respCode int) {
+	w.WriteHeader(respCode)
 
 	_, err := w.Write([]byte(message))
 	if err != nil {
