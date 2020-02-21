@@ -1,14 +1,12 @@
 package server
 
 import (
-	"context"
-	"errors"
+	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/ewohltman/pod-bouncer/internal/pkg/logging"
 )
@@ -16,111 +14,108 @@ import (
 const (
 	testPort = "8080"
 	testURL  = "http://localhost:" + testPort
-
-	httpClientTimeout = time.Second
-	contextTimeout    = time.Second
 )
+
+type testCase struct {
+	req                  *http.Request
+	expectedResponseCode int
+}
 
 func TestNew(t *testing.T) {
 	log := logging.New()
 	log.Out = ioutil.Discard
 
 	testServer := New(log, testPort)
+	if testServer == nil {
+		t.Fatal("Unexpected nil *http.Server")
+	}
 
-	go func() {
-		err := testServer.ListenAndServe()
-		if !errors.Is(err, http.ErrServerClosed) {
-			t.Errorf("Test server error: %s", err)
-		}
-	}()
-
-	client := &http.Client{Timeout: httpClientTimeout}
-
-	err := testAlertEndpoint(client)
+	err := testAlertEndpoint(log)
 	if err != nil {
 		t.Errorf("Error testing alert endpoint: %s", err)
 	}
 
-	err = testRootEndpoint(client)
+	err = testRootEndpoint(log)
 	if err != nil {
 		t.Errorf("Error testing root endpoint: %s", err)
 	}
-
-	ctx, cancelContext := context.WithTimeout(context.Background(), contextTimeout)
-	defer cancelContext()
-
-	err = testServer.Shutdown(ctx)
-	if err != nil {
-		t.Errorf("Error closing test server: %s", err)
-	}
 }
 
-func testAlertEndpoint(client *http.Client) error {
-	resp, err := doRequest(client, http.MethodPost, alertEndpoint, nil)
+func testAlertEndpoint(log logging.Interface) error {
+	testEventData, err := ioutil.ReadFile("testdata/event.json")
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading testdata file: %w", err)
 	}
 
-	err = drainCloseResponse(resp)
+	nilBodyReq, err := http.NewRequest(http.MethodPost, testURL+alertEndpoint, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating nil body test request: %w", err)
 	}
 
-	return nil
+	invalidReq, err := http.NewRequest(http.MethodPost, testURL+alertEndpoint, bytes.NewReader([]byte{}))
+	if err != nil {
+		return fmt.Errorf("error creating invalid test request: %w", err)
+	}
+
+	validReq, err := http.NewRequest(http.MethodPost, testURL+alertEndpoint, bytes.NewReader(testEventData))
+	if err != nil {
+		return fmt.Errorf("error creating valid test request: %w", err)
+	}
+
+	testCases := []*testCase{
+		{req: nilBodyReq, expectedResponseCode: http.StatusBadRequest},
+		{req: invalidReq, expectedResponseCode: http.StatusInternalServerError},
+		{req: validReq, expectedResponseCode: http.StatusOK},
+	}
+
+	return runTests(alertHandler(log), testCases)
 }
 
-func testRootEndpoint(client *http.Client) error {
-	resp, err := doRequest(client, http.MethodGet, rootEndpoint, nil)
+func testRootEndpoint(log logging.Interface) error {
+	nilBodyReq, err := http.NewRequest(http.MethodPost, testURL+rootEndpoint, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating nil body test request: %w", err)
 	}
 
-	err = drainCloseResponse(resp)
+	emptyBodyReq, err := http.NewRequest(http.MethodPost, testURL+rootEndpoint, bytes.NewReader([]byte{}))
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating empty body test request: %w", err)
 	}
 
-	return nil
+	testCases := []*testCase{
+		{req: nilBodyReq, expectedResponseCode: http.StatusOK},
+		{req: emptyBodyReq, expectedResponseCode: http.StatusOK},
+	}
+
+	return runTests(rootHandler(log), testCases)
 }
 
-func doRequest(client *http.Client, method, endpoint string, body io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest(method, testURL+endpoint, body)
-	if err != nil {
-		return nil, fmt.Errorf("error creating test request: %w", err)
-	}
+func runTests(testFunc func(http.ResponseWriter, *http.Request), testCases []*testCase) error {
+	for _, tc := range testCases {
+		respRecorder := httptest.NewRecorder()
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error performing test request: %w", err)
-	}
+		testFunc(respRecorder, tc.req)
 
-	return resp, nil
-}
+		resp := respRecorder.Result()
 
-func drainCloseResponse(resp *http.Response) (err error) {
-	defer func() {
-		err = closeResponse(resp, err)
-	}()
+		if resp.StatusCode != tc.expectedResponseCode {
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return fmt.Errorf("error reading response body: %w", err)
+			}
 
-	_, err = io.Copy(ioutil.Discard, resp.Body)
-	if err != nil {
-		err = fmt.Errorf("error draining test response body: %w", err)
-	}
+			err = resp.Body.Close()
+			if err != nil {
+				return fmt.Errorf("error closing response body: %w", err)
+			}
 
-	return
-}
-
-func closeResponse(resp *http.Response, err error) error {
-	closeErr := resp.Body.Close()
-	if closeErr != nil {
-		closeErr = fmt.Errorf("error closing test response body: %w", closeErr)
-
-		if err != nil {
-			return fmt.Errorf("%s: %w", closeErr, err)
+			return fmt.Errorf(
+				"unexpected response code (%d): %s",
+				resp.StatusCode,
+				string(body),
+			)
 		}
-
-		return closeErr
 	}
 
-	return err
+	return nil
 }
