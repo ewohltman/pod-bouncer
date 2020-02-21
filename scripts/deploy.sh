@@ -12,6 +12,9 @@ REPO_YMLS="${SCRIPT_DIR}/../deployments/kubernetes"
 
 NAMESPACE_YML="${REPO_YMLS}/namespace.yml"
 SERVICE_YML="${REPO_YMLS}/service.yml"
+SERVICE_ACCOUNT_YML="${REPO_YMLS}/serviceaccount.yml"
+ROLE_YML="${REPO_YMLS}/role.yml"
+ROLE_BINDING_YML="${REPO_YMLS}/rolebinding.yml"
 
 DEPLOYMENT_YML="${REPO_YMLS}/deployment.yml"
 VARIABLIZED_DEPLOYMENT_YML="/tmp/deployment.yml"
@@ -27,6 +30,9 @@ applyValues() {
 deploy() {
   kubectl apply -f "${NAMESPACE_YML}"
   kubectl apply -f "${SERVICE_YML}"
+  kubectl apply -f "${SERVICE_ACCOUNT_YML}"
+  kubectl apply -f "${ROLE_YML}"
+  kubectl apply -f "${ROLE_BINDING_YML}"
   kubectl apply -f "${VARIABLIZED_DEPLOYMENT_YML}"
   kubectl -n ephemeral-roles rollout status --timeout 120s deployment/pod-bouncer
 }
