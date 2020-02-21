@@ -18,6 +18,7 @@ spec:
         version: "{COMMIT}"
     spec:
       terminationGracePeriodSeconds: 30
+      serviceAccountName: pod-bouncer
       containers:
         - name: pod-bouncer
           image: ewohltman/pod-bouncer:latest
