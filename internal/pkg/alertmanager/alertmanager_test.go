@@ -1,10 +1,8 @@
 package alertmanager
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,53 +13,31 @@ import (
 	"github.com/ewohltman/pod-bouncer/internal/pkg/logging"
 )
 
-func TestNewHandler(t *testing.T) {
+func TestNewEventHandler(t *testing.T) {
 	_, err := testHandler()
 	if err != nil {
-		t.Fatalf("Error creating test Handler: %s", err)
+		t.Fatalf("Error creating test EventHandler: %s", err)
 	}
 }
 
-func TestHandler_DeletePod(t *testing.T) {
+func TestEventHandler_Handle(t *testing.T) {
 	handler, err := testHandler()
 	if err != nil {
-		t.Fatalf("Error creating test Handler: %s", err)
+		t.Fatalf("Error creating test EventHandler: %s", err)
 	}
 
-	_, testEvent, err := testEvent()
+	testEventData, _, err := testEvent()
 	if err != nil {
 		t.Fatalf("Error creating test Event: %s", err)
 	}
 
-	for _, alert := range testEvent.Alerts {
-		err = handler.DeletePod(alert)
-		if err != nil {
-			t.Errorf("Error deleting pod: %s", err)
-		}
+	err = handler.Handle(testEventData)
+	if err != nil {
+		t.Errorf("Error deleting pod: %s", err)
 	}
 }
 
-func TestNewEvent(t *testing.T) {
-	testEventData, testEvent, err := testEvent()
-	if err != nil {
-		t.Fatalf("Error creating new test event: %s", err)
-	}
-
-	event, err := NewEvent(testEventData)
-	if err != nil {
-		t.Fatalf("Error creating new test event: %s", err)
-	}
-
-	if !reflect.DeepEqual(event, testEvent) {
-		t.Errorf(
-			"Unexpected result. Got: %+v, Expected: %+v",
-			event,
-			testEvent,
-		)
-	}
-}
-
-func testHandler() (*Handler, error) {
+func testHandler() (*EventHandler, error) {
 	log := logging.New()
 	log.Out = ioutil.Discard
 
@@ -70,7 +46,7 @@ func testHandler() (*Handler, error) {
 		return nil, fmt.Errorf("error creating test event: %w", err)
 	}
 
-	handler := NewHandler(log, testClientset(testEvent))
+	handler := NewEventHandler(log, testClientset(testEvent))
 
 	return handler, nil
 }
@@ -81,12 +57,7 @@ func testEvent() (eventData []byte, event *Event, err error) {
 		return nil, nil, fmt.Errorf("error reading testdata file: %w", err)
 	}
 
-	event = &Event{}
-
-	err = json.Unmarshal(eventData, event)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error unmarshaling test event: %w", err)
-	}
+	event, err = parseEvent(eventData)
 
 	return
 }

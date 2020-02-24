@@ -6,29 +6,22 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ewohltman/pod-bouncer/internal/pkg/logging"
 )
 
-// Handler provides methods to handle alert events.
-type Handler struct {
-	log           logging.Interface
-	kubeClientset kubernetes.Interface
-}
+const (
+	severityCritical = "critical"
 
-// NewHandler returns a new *Handler.
-func NewHandler(log logging.Interface, kubeClientset kubernetes.Interface) *Handler {
-	return &Handler{
-		log:           log,
-		kubeClientset: kubeClientset,
-	}
-}
+	errorDeletingPod = "error deleting pod"
+)
 
-// DeletePod deletes a running pod, allowing Kubernetes to reschedule it.
-func (handler *Handler) DeletePod(alert *Alert) error {
-	return handler.kubeClientset.CoreV1().Pods(alert.Labels.Namespace).Delete(alert.Labels.Pod, &metav1.DeleteOptions{})
+// Handler is an interface for abstracting handling implementations.
+type Handler interface {
+	Handle([]byte) error
 }
 
 // Annotations are extra metadata of an Alert.
@@ -73,8 +66,55 @@ type Event struct {
 	GroupKey          string       `json:"groupKey,omitempty"`
 }
 
-// NewEvent unmarshals data and returns an *Event.
-func NewEvent(data []byte) (*Event, error) {
+// EventHandler provides methods to handle alert events.
+type EventHandler struct {
+	log           logging.Interface
+	kubeClientset kubernetes.Interface
+}
+
+// NewEventHandler returns a new *EventHandler.
+func NewEventHandler(log logging.Interface, kubeClientset kubernetes.Interface) *EventHandler {
+	return &EventHandler{
+		log:           log,
+		kubeClientset: kubeClientset,
+	}
+}
+
+// Handle handles the provided data, parsing it into an Event and then deleting
+// pods in the alerts of the event.
+func (handler *EventHandler) Handle(data []byte) error {
+	handler.log.Debug("Handling AlertManager event")
+
+	event, err := parseEvent(data)
+	if err != nil {
+		return err
+	}
+
+	for _, alert := range event.Alerts {
+		if alert.Labels.Severity != severityCritical {
+			continue
+		}
+
+		err = handler.deletePod(alert)
+		if err != nil {
+			handler.log.WithError(err).Error(errorDeletingPod)
+			continue
+		}
+
+		handler.log.WithFields(logrus.Fields{
+			"namespace": alert.Labels.Namespace,
+			"pod":       alert.Labels.Pod,
+		}).Info("Pod deleted")
+	}
+
+	return nil
+}
+
+func (handler *EventHandler) deletePod(alert *Alert) error {
+	return handler.kubeClientset.CoreV1().Pods(alert.Labels.Namespace).Delete(alert.Labels.Pod, &metav1.DeleteOptions{})
+}
+
+func parseEvent(data []byte) (*Event, error) {
 	event := &Event{}
 
 	err := json.Unmarshal(data, event)

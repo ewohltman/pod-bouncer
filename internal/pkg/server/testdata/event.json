@@ -22,6 +22,27 @@
       "endsAt": "0001-01-01T00:00:00Z",
       "generatorURL": "http://prometheus-k8s-1:9090/graph?g0.expr=go_goroutines%7Bnamespace%3D%22ephemeral-roles%22%2Cpod%3D%22ephemeral-roles-0%22%2Cservice%3D%22ephemeral-roles%22%7D+%3E+1\u0026g0.tab=1",
       "fingerprint": "7b713e23af48ef51"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "EphemeralRoles-1-Goroutines",
+        "endpoint": "http",
+        "instance": "10.2.3.11:8080",
+        "job": "ephemeral-roles",
+        "namespace": "ephemeral-roles",
+        "pod": "ephemeral-roles-1",
+        "prometheus": "monitoring/k8s",
+        "service": "ephemeral-roles",
+        "severity": "info"
+      },
+      "annotations": {
+        "description": "This is to alert when the number of goroutines exceeds a threshold."
+      },
+      "startsAt": "2020-02-19T07:12:25.346242652Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus-k8s-1:9090/graph?g0.expr=go_goroutines%7Bnamespace%3D%22ephemeral-roles%22%2Cpod%3D%22ephemeral-roles-1%22%2Cservice%3D%22ephemeral-roles%22%7D+%3E+1\u0026g0.tab=1",
+      "fingerprint": "7b713e23af48ef51"
     }
   ],
   "groupLabels": {
