@@ -31,19 +31,17 @@ const (
 )
 
 const (
-	errorInternalServerError    = "Internal server error"
-	errorEmptyRequestBody       = errorInternalServerError + ": empty request body"
-	errorReadingRequestBody     = errorInternalServerError + ": unable to read request body"
-	errorClosingRequestBody     = errorInternalServerError + ": unable to close request body"
-	errorWritingResponseBody    = errorInternalServerError + ": unable to write response body"
-	errorUnmarshalingAlertEvent = errorInternalServerError + ": unable to unmarshal Event"
-	errorDeletingPod            = errorInternalServerError + ": error deleting pod"
+	errorInternalServerError = "Internal server error"
+	errorEmptyRequestBody    = errorInternalServerError + ": empty request body"
+	errorReadingRequestBody  = errorInternalServerError + ": unable to read request body"
+	errorClosingRequestBody  = errorInternalServerError + ": unable to close request body"
+	errorWritingResponseBody = errorInternalServerError + ": unable to write response body"
 )
 
 // Instance wraps an *http.Server for extending custom functionality.
 type Instance struct {
 	*http.Server
-	alertmanagerHandler *alertmanager.Handler
+	alertmanagerHandler alertmanager.Handler
 }
 
 // New returns a new pre-configured server instance.
@@ -58,7 +56,7 @@ func New(log logging.Interface, port string, kubeClientset kubernetes.Interface)
 			Handler:  mux,
 			ErrorLog: errorLog,
 		},
-		alertmanagerHandler: alertmanager.NewHandler(log, kubeClientset),
+		alertmanagerHandler: alertmanager.NewEventHandler(log, kubeClientset),
 	}
 
 	mux.Handle(metricsEndpoint, promhttp.Handler())
@@ -77,11 +75,10 @@ func New(log logging.Interface, port string, kubeClientset kubernetes.Interface)
 
 func (instance *Instance) alertHandler(log logging.Interface) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Info("Alert event received")
+		log.Debug("AlertManager event received")
 
 		if r.Body == nil {
 			log.Error(errorEmptyRequestBody)
-
 			send400ErrorResponse(log, w, errorEmptyRequestBody)
 
 			return
@@ -90,7 +87,6 @@ func (instance *Instance) alertHandler(log logging.Interface) func(http.Response
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.WithError(err).Error(errorReadingRequestBody)
-
 			send500ErrorResponse(log, w, errorReadingRequestBody)
 
 			return
@@ -103,26 +99,9 @@ func (instance *Instance) alertHandler(log logging.Interface) func(http.Response
 			}
 		}()
 
-		event, err := alertmanager.NewEvent(reqBody)
+		err = instance.alertmanagerHandler.Handle(reqBody)
 		if err != nil {
-			log.WithError(err).Error(errorUnmarshalingAlertEvent)
-
-			send500ErrorResponse(log, w, errorUnmarshalingAlertEvent)
-
-			return
-		}
-
-		for _, alert := range event.Alerts {
-			err = instance.alertmanagerHandler.DeletePod(alert)
-			if err != nil {
-				log.WithError(err).Error(errorDeletingPod)
-				continue
-			}
-
-			log.WithFields(logrus.Fields{
-				"namespace": alert.Labels.Namespace,
-				"pod":       alert.Labels.Pod,
-			}).Info("Deleted pod")
+			send500ErrorResponse(log, w, errorInternalServerError+": "+err.Error())
 		}
 	}
 }
