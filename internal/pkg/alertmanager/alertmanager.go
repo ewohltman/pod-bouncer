@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	statusFiring     = "firing"
 	severityCritical = "critical"
 
 	errorDeletingPod = "error deleting pod"
@@ -90,7 +91,13 @@ func (handler *EventHandler) Handle(data []byte) error {
 		return err
 	}
 
+	handler.log.WithField("event", *event).Info("Parsed event")
+
 	for _, alert := range event.Alerts {
+		if alert.Status != statusFiring {
+			continue
+		}
+
 		if alert.Labels.Severity != severityCritical {
 			continue
 		}
