@@ -4,8 +4,6 @@ kind: Deployment
 metadata:
   name: pod-bouncer
   namespace: ephemeral-roles
-  annotations:
-    sidecar.jaegertracing.io/inject: "true"
   labels:
     app: pod-bouncer
 spec:
