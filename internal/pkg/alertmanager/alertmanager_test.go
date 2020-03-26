@@ -1,6 +1,7 @@
 package alertmanager
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"testing"
@@ -31,7 +32,7 @@ func TestEventHandler_Handle(t *testing.T) {
 		t.Fatalf("Error creating test Event: %s", err)
 	}
 
-	err = handler.Handle(testEventData)
+	err = handler.Handle(context.Background(), testEventData)
 	if err != nil {
 		t.Errorf("Error deleting pod: %s", err)
 	}

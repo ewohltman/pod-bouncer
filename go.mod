@@ -5,9 +5,7 @@ go 1.14
 replace github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.0.0-20170729233727-0c5108395e2d
 
 require (
-	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/protobuf v1.3.5 // indirect
-	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/gnostic v0.4.1 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
@@ -21,8 +19,6 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	k8s.io/api v0.18.0
-	k8s.io/apimachinery v0.17.4
+	k8s.io/apimachinery v0.18.0
 	k8s.io/client-go v0.18.0
-	k8s.io/utils v0.0.0-20200229041039-0a110f9eb7ab // indirect
-	sigs.k8s.io/yaml v1.2.0 // indirect
 )
