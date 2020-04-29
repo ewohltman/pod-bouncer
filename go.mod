@@ -9,7 +9,7 @@ require (
 	github.com/googleapis/gnostic v0.4.1 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
-	github.com/prometheus/client_golang v1.5.1
+	github.com/prometheus/client_golang v1.6.0
 	github.com/prometheus/procfs v0.0.10 // indirect
 	github.com/sirupsen/logrus v1.5.0
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4 // indirect
