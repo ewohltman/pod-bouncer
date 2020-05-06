@@ -2,8 +2,6 @@ module github.com/ewohltman/pod-bouncer
 
 go 1.14
 
-// replace github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.0.0-20170729233727-0c5108395e2d
-
 require (
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
