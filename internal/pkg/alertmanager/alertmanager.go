@@ -3,7 +3,6 @@
 package alertmanager
 
 import (
-	"context"
 	"encoding/json"
 	"time"
 
@@ -23,7 +22,7 @@ const (
 
 // Handler is an interface for abstracting handling implementations.
 type Handler interface {
-	Handle(context.Context, []byte) error
+	Handle([]byte) error
 }
 
 // Annotations are extra metadata of an Alert.
@@ -84,7 +83,7 @@ func NewEventHandler(log logging.Interface, kubeClientset kubernetes.Interface) 
 
 // Handle handles the provided data, parsing it into an Event and then deleting
 // pods in the alerts of the event.
-func (handler *EventHandler) Handle(ctx context.Context, data []byte) error {
+func (handler *EventHandler) Handle(data []byte) error {
 	handler.log.Debug("Handling AlertManager event")
 
 	event, err := parseEvent(data)
@@ -103,7 +102,7 @@ func (handler *EventHandler) Handle(ctx context.Context, data []byte) error {
 			continue
 		}
 
-		err = handler.deletePod(ctx, alert)
+		err = handler.deletePod(alert)
 		if err != nil {
 			handler.log.WithError(err).Error(errorDeletingPod)
 			continue
@@ -118,8 +117,8 @@ func (handler *EventHandler) Handle(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (handler *EventHandler) deletePod(ctx context.Context, alert *Alert) error {
-	return handler.kubeClientset.CoreV1().Pods(alert.Labels.Namespace).Delete(ctx, alert.Labels.Pod, metav1.DeleteOptions{})
+func (handler *EventHandler) deletePod(alert *Alert) error {
+	return handler.kubeClientset.CoreV1().Pods(alert.Labels.Namespace).Delete(alert.Labels.Pod, &metav1.DeleteOptions{})
 }
 
 func parseEvent(data []byte) (*Event, error) {
