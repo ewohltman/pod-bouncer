@@ -99,7 +99,7 @@ func (instance *Instance) alertHandler(log logging.Interface) func(http.Response
 			}
 		}()
 
-		err = instance.alertmanagerHandler.Handle(r.Context(), reqBody)
+		err = instance.alertmanagerHandler.Handle(reqBody)
 		if err != nil {
 			send500ErrorResponse(log, w, errorInternalServerError+": "+err.Error())
 		}
