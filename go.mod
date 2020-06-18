@@ -3,10 +3,7 @@ module github.com/ewohltman/pod-bouncer
 go 1.14
 
 require (
-	github.com/gogo/protobuf v1.3.1 // indirect
-	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
-	github.com/onsi/ginkgo v1.11.0 // indirect
 	github.com/prometheus/client_golang v1.6.0
 	github.com/sirupsen/logrus v1.6.0
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4 // indirect
@@ -15,9 +12,7 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	k8s.io/api v0.17.0
-	k8s.io/apimachinery v0.17.0
+	k8s.io/apimachinery v0.18.4
 	k8s.io/client-go v0.17.0
-	k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c // indirect
 	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89 // indirect
-	sigs.k8s.io/yaml v1.2.0 // indirect
 )
