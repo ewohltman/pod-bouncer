@@ -1,6 +1,6 @@
 module github.com/ewohltman/pod-bouncer
 
-go 1.14
+go 1.15
 
 replace github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.0
 
