@@ -1,0 +1,29 @@
+version: 2
+updates:
+- package-ecosystem: gomod
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "10:00"
+  open-pull-requests-limit: 10
+  target-branch: develop
+  reviewers:
+  - ewohltman
+  assignees:
+  - ewohltman
+  labels:
+  - dependencies
+  ignore:
+  - dependency-name: k8s.io/api
+    versions:
+    - "> 0.17.0"
+  - dependency-name: k8s.io/apimachinery
+    versions:
+    - "> 0.17.0"
+  - dependency-name: k8s.io/client-go
+    versions:
+    - "> 0.17.0"
+  - dependency-name: github.com/sirupsen/logrus
+    versions:
+    - 1.7.1
+    - 1.8.0
